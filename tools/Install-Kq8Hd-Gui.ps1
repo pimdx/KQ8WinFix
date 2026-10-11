@@ -77,6 +77,14 @@ function Test-MpvInPackageGui {
   return (Test-Path -LiteralPath $p)
 }
 
+function Test-PackageHasCutsceneAvisGui {
+  $win11 = Join-Path $PackageRoot 'runtime\win11'
+  foreach ($n in @('w32opn_1.avi', 'W32mdl_1.avi', 'W32ndg_1.avi')) {
+    if (-not (Test-Path -LiteralPath (Join-Path $win11 $n))) { return $false }
+  }
+  return $true
+}
+
 function Invoke-Core {
   param(
     [string]$GamePath,
@@ -179,16 +187,16 @@ $y += 94
 
 $grpStack = New-Object System.Windows.Forms.GroupBox
 $grpStack.Location = New-Object System.Drawing.Point(16, $y)
-$grpStack.Size = New-Object System.Drawing.Size(520, 214)
+$grpStack.Size = New-Object System.Drawing.Size(520, 232)
 $grpStack.Text = 'This install will add or replace'
 $form.Controls.Add($grpStack)
 
 $lblStack = New-Object System.Windows.Forms.Label
 $lblStack.Location = New-Object System.Drawing.Point(12, 22)
-$lblStack.Size = New-Object System.Drawing.Size(492, 182)
+$lblStack.Size = New-Object System.Drawing.Size(492, 200)
 $lblStack.ForeColor = [System.Drawing.Color]::DimGray
 $grpStack.Controls.Add($lblStack)
-$y += 222
+$y += 240
 
 function Update-InstallStack {
   if ($rbRec.Checked) {
@@ -196,14 +204,24 @@ function Update-InstallStack {
   } else {
     $gfx = '- Graphics: keeps your existing GOG glide2x.dll (not replaced)'
   }
-  $lblStack.Text = @(
+  if (Test-PackageHasCutsceneAvisGui) {
+    $cutLines = @(
+      '- Cutscenes: mpv.exe, d3dcompiler_43.dll, w32opn_1.avi, W32mdl_1.avi, W32ndg_1.avi, mpv license files'
+    )
+  } else {
+    $cutLines = @(
+      '- Cutscenes: mpv.exe, d3dcompiler_43.dll, mpv license files',
+      '- REQUIRED AFTER INSTALL: copy w32opn_1.avi, W32mdl_1.avi, W32ndg_1.avi next to Mask.exe (see README)'
+    )
+  }
+  $lblStack.Text = (@(
     $gfx,
-    '- Win11 fix (NicoDE kq8fix): kq8fix.exe, kq8fix.dll, kq8fix.ini',
-    '- Cutscenes: mpv.exe, d3dcompiler_43.dll, w32opn_1.avi, W32mdl_1.avi, W32ndg_1.avi, mpv license files',
+    '- Win11 fix (NicoDE kq8fix): kq8fix.exe, kq8fix.dll, kq8fix.ini'
+  ) + $cutLines + @(
     '- Launcher: Launch KQ8.bat, Launch KQ8 Emergency.bat, Launch-Kq8.ps1, icon, settings file',
     '- Backup: replaced game files go under backup_kq8fix_*',
     '- Uninstall: restores your backed-up files and removes all files added by this installer (choices above do not affect Uninstall).'
-  ) -join "`n"
+  )) -join "`n"
 }
 
 $rbRec.Add_CheckedChanged({ Update-InstallStack })
@@ -385,8 +403,12 @@ $btnInstall.Add_Click({
 
     $status.Text = 'Install complete.'
     $status.ForeColor = [System.Drawing.Color]::DarkGreen
+    $aviNote = ''
+    if (-not (Test-PackageHasCutsceneAvisGui)) {
+      $aviNote = "`n`nREQUIRED AFTER INSTALL: copy these next to Mask.exe before playing intros/endings:`n  w32opn_1.avi`n  W32mdl_1.avi`n  W32ndg_1.avi`n(See README.)"
+    }
     [System.Windows.Forms.MessageBox]::Show(
-      "Installed. Play with Launch KQ8 (desktop shortcut or game folder).",
+      "Installed. Play with Launch KQ8 (desktop shortcut or game folder).$aviNote",
       'Setup complete', 'OK', 'Information') | Out-Null
     $form.Close()
   } catch {

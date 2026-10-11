@@ -124,6 +124,25 @@ function Test-MpvInPackage {
   return (Test-Path -LiteralPath (Join-Path $Win11Src 'mpv.exe'))
 }
 
+function Get-CutsceneAviNames {
+  @('w32opn_1.avi', 'W32mdl_1.avi', 'W32ndg_1.avi')
+}
+
+function Test-PackageHasCutsceneAvis {
+  foreach ($n in Get-CutsceneAviNames) {
+    if (-not (Test-Path -LiteralPath (Join-Path $Win11Src $n))) { return $false }
+  }
+  return $true
+}
+
+function Get-MissingGameCutsceneAvis([string]$gameDir) {
+  $missing = New-Object System.Collections.Generic.List[string]
+  foreach ($n in Get-CutsceneAviNames) {
+    if (-not (Test-Path -LiteralPath (Join-Path $gameDir $n))) { [void]$missing.Add($n) }
+  }
+  return @($missing)
+}
+
 function Get-CurrentResolution([string]$gameDir) {
   $path = Join-Path $gameDir 'Options.cs'
   if (Test-Path $path) {
@@ -440,6 +459,9 @@ Write-Host "  DirectGlide:          $(if($useDirectGlide){'YES'}else{'NO'})"
 Write-Host "  Resolution:           $(if($keepResolution){"keep ($resForJson)"}else{$resForJson})"
 Write-Host "  Shortcut:             $(if($makeShortcut){'YES'}else{'NO'})"
 Write-Host "  Cutscene player:      mpv (bundled; install into game folder)"
+if (-not (Test-PackageHasCutsceneAvis)) {
+  Write-Host '  Cutscene AVIs:        not in this package (add next to Mask.exe after install)'
+}
 Write-Host ''
 if (-not $NonInteractive -and -not (Read-YesNo 'Proceed? (y/n)' $true)) {
   Write-Host 'Cancelled.'; exit 0
@@ -531,7 +553,14 @@ if (-not (Test-Path -LiteralPath (Join-Path $GamePath 'mpv.exe'))) {
 
 Write-Host ''
 Write-Host 'Install complete. Run Setup again anytime to change options or uninstall.'
-Write-Host 'Cutscenes: mpv + H.264 AVIs.'
+$missingAvis = @(Get-MissingGameCutsceneAvis $GamePath)
+if ($missingAvis.Count -gt 0) {
+  Write-Host 'Cutscenes: mpv installed. Add these H.264 files next to Mask.exe, then play:'
+  foreach ($n in $missingAvis) { Write-Host "  - $n" }
+  Write-Host '(Boot intro / mid / ending. See README for details.)'
+} else {
+  Write-Host 'Cutscenes: mpv + H.264 AVIs.'
+}
 Write-Host 'Play: desktop shortcut or Launch KQ8.bat'
 Write-Host "Backup: $backupDir"
 Write-Host ''
