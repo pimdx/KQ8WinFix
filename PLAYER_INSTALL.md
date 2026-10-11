@@ -1,7 +1,10 @@
-# Quick install (Nexus package)
+# Quick install checklist
 
-1. Run `Setup KQ8 Fix.bat` and install into your Mask of Eternity folder.  
-2. Copy `w32opn_1.avi`, `W32mdl_1.avi`, and `W32ndg_1.avi` next to `Mask.exe`.  
-3. Play with `Launch KQ8.bat`.
+Full player / mod-page documentation: see **[README.md](README.md)**.
 
-Full details: [README.md](README.md).
+1. Game at a short path (e.g. `C:\Games\KQ8`), preferably without spaces.  
+2. Run `Setup KQ8 Fix.bat` (admin if under Program Files).  
+3. Choose Recommended or Windows fix only ? Install.  
+4. Play with `Launch KQ8.bat` or the desktop shortcut.
+
+Uninstall from the same Setup window restores backups and removes installer-added files.

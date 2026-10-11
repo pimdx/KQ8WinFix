@@ -211,7 +211,7 @@ function Update-InstallStack {
   } else {
     $cutLines = @(
       '- Cutscenes: mpv.exe, d3dcompiler_43.dll, mpv license files',
-      '- REQUIRED AFTER INSTALL: copy w32opn_1.avi, W32mdl_1.avi, W32ndg_1.avi next to Mask.exe (see README)'
+      '- Cutscene AVIs: NOT INCLUDED - after install copy w32opn_1.avi, W32mdl_1.avi, W32ndg_1.avi next to Mask.exe (see README)'
     )
   }
   $lblStack.Text = (@(
@@ -405,7 +405,7 @@ $btnInstall.Add_Click({
     $status.ForeColor = [System.Drawing.Color]::DarkGreen
     $aviNote = ''
     if (-not (Test-PackageHasCutsceneAvisGui)) {
-      $aviNote = "`n`nREQUIRED AFTER INSTALL: copy these next to Mask.exe before playing intros/endings:`n  w32opn_1.avi`n  W32mdl_1.avi`n  W32ndg_1.avi`n(See README.)"
+      $aviNote = "`n`nCutscene AVIs: NOT INCLUDED.`nAfter install, copy these next to Mask.exe before playing intros/endings:`n  w32opn_1.avi`n  W32mdl_1.avi`n  W32ndg_1.avi`n(See README.)"
     }
     [System.Windows.Forms.MessageBox]::Show(
       "Installed. Play with Launch KQ8 (desktop shortcut or game folder).$aviNote",

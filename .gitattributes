@@ -1,2 +1,1 @@
 runtime/win11/mpv.exe filter=lfs diff=lfs merge=lfs -text
-runtime/win11/*.avi filter=lfs diff=lfs merge=lfs -text
