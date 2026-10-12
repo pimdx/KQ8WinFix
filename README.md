@@ -1,6 +1,6 @@
 ﻿# King's Quest VIII: Mask of Eternity — Windows 10/11 Fix
 
-**Version 1.2.4** · Requires your own copy of the game (GOG or disc). This package does **not** include the game.
+**Version 1.2.5** · Requires your own copy of the game (GOG or disc). This package does **not** include the game.
 
 A local, offline fix pack for *King's Quest: Mask of Eternity* on modern Windows. It installs a Win11 compatibility shim, reliable H.264 cutscenes (via **mpv**), an optional sharper Glide renderer (**DirectGlide**), and a small settings launcher.
 
