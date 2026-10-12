@@ -23,26 +23,48 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
-function Resolve-GameDir([string]$Hint) {
-  if ($Hint -and (Test-Path (Join-Path $Hint 'Mask.exe'))) {
-    return (Get-ShortGameDir ((Resolve-Path $Hint).Path))
+function Test-MaskInDir([string]$dir) {
+  # Join-Path / Test-Path throw DriveNotFoundException when a drive letter
+  # (e.g. D:) does not exist — never treat that as fatal during discovery.
+  if ([string]::IsNullOrWhiteSpace($dir)) { return $false }
+  try {
+    $mask = Join-Path $dir 'Mask.exe'
+    return [bool](Test-Path -LiteralPath $mask -ErrorAction Stop)
+  } catch {
+    return $false
   }
-  # Prefer space-free junction (SegMash truncates paths with spaces after cutscenes).
+}
+
+function Resolve-GameDir([string]$Hint) {
+  # Installer copies this script next to Mask.exe. Prefer that folder — the game
+  # lives wherever Setup detected/browsed, not a hardcoded drive letter.
+  if ($Hint -and (Test-MaskInDir $Hint)) {
+    return (Get-ShortGameDir ((Resolve-Path -LiteralPath $Hint).Path))
+  }
+
+  $here = Split-Path -Parent $PSCommandPath
+  if (Test-MaskInDir $here) {
+    return (Get-ShortGameDir ((Resolve-Path -LiteralPath $here).Path))
+  }
+
+  # Optional known roots / space-free junction siblings (skip missing drives).
   foreach ($cand in @(
-      'D:\Games\KQ8',
+      (Join-Path $here 'KQ8'),
+      (Join-Path (Split-Path -Parent $here) 'KQ8'),
+      'C:\Games\KQ8\KQ8',
+      'C:\Games\KQ8',
       'D:\Games\KQ8\KQ8',
-      (Join-Path (Split-Path -Parent $PSCommandPath) '..\KQ8'),
-      (Join-Path (Split-Path -Parent $PSCommandPath) 'KQ8')
+      'D:\Games\KQ8'
     )) {
-    if ($cand -and (Test-Path (Join-Path $cand 'Mask.exe'))) {
+    if (Test-MaskInDir $cand) {
       return (Resolve-Path -LiteralPath $cand).Path
     }
   }
-  $here = Split-Path -Parent $PSCommandPath
-  if (Test-Path (Join-Path $here 'Mask.exe')) { return (Get-ShortGameDir ((Resolve-Path $here).Path)) }
+
   $parent = Split-Path -Parent $here
-  if (Test-Path (Join-Path $parent 'Mask.exe')) { return (Get-ShortGameDir ((Resolve-Path $parent).Path)) }
-  if (Test-Path (Join-Path (Get-Location) 'Mask.exe')) { return (Get-ShortGameDir ((Resolve-Path (Get-Location)).Path)) }
+  if (Test-MaskInDir $parent) { return (Get-ShortGameDir ((Resolve-Path -LiteralPath $parent).Path)) }
+  $cwd = (Get-Location).Path
+  if (Test-MaskInDir $cwd) { return (Get-ShortGameDir ((Resolve-Path -LiteralPath $cwd).Path)) }
   throw 'Mask.exe not found. Run this launcher from your game folder (or pass -GamePath).'
 }
 

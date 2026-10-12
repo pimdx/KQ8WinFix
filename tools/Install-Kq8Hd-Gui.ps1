@@ -26,6 +26,18 @@ if (-not (Test-Path $CoreInstaller)) {
 }
 if (-not (Test-Path $CoreInstaller)) { throw "Install-Kq8Hd.ps1 not found" }
 
+function Test-PathExistsSafe([string]$path) {
+  if ([string]::IsNullOrWhiteSpace($path)) { return $false }
+  try { return [bool](Test-Path -LiteralPath $path -ErrorAction Stop) }
+  catch { return $false }
+}
+
+function Test-MaskInDir([string]$dir) {
+  if ([string]::IsNullOrWhiteSpace($dir)) { return $false }
+  try { return Test-PathExistsSafe (Join-Path $dir 'Mask.exe') }
+  catch { return $false }
+}
+
 function Get-GogKq8Path {
   foreach ($k in @(
       'HKLM:\SOFTWARE\WOW6432Node\GOG.com\Games\1207661053',
@@ -34,15 +46,16 @@ function Get-GogKq8Path {
     )) {
     if (-not (Test-Path $k)) { continue }
     $p = (Get-ItemProperty $k -EA SilentlyContinue).PATH
-    if ($p -and (Test-Path (Join-Path $p 'Mask.exe'))) { return $p }
+    if (Test-MaskInDir $p) { return $p }
     $exe = (Get-ItemProperty $k -EA SilentlyContinue).EXE
-    if ($exe -and (Test-Path $exe)) { return (Split-Path $exe -Parent) }
+    if ($exe -and (Test-PathExistsSafe $exe)) { return (Split-Path $exe -Parent) }
   }
+  # Prefer registry / GOG Galaxy; only scan C:\Games and D:\Games if those roots exist.
   foreach ($root in @(
       "${env:ProgramFiles(x86)}\GOG Galaxy\Games",
       "$env:ProgramFiles\GOG Galaxy\Games",
-      'D:\Games', 'C:\Games'
-    ) | Where-Object { $_ -and (Test-Path $_) }) {
+      'C:\Games', 'D:\Games'
+    ) | Where-Object { Test-PathExistsSafe $_ }) {
     $hit = Get-ChildItem $root -Recurse -Filter 'Mask.exe' -EA SilentlyContinue | Select-Object -First 1
     if ($hit) { return $hit.DirectoryName }
   }
@@ -50,7 +63,7 @@ function Get-GogKq8Path {
 }
 
 function Test-GameDir([string]$path) {
-  return ($path -and (Test-Path (Join-Path $path 'Mask.exe')))
+  return (Test-MaskInDir $path)
 }
 
 function Test-IsElevated {
@@ -63,7 +76,7 @@ function Test-IsProgramFilesPath([string]$path) {
 }
 
 function Test-FolderWritable([string]$path) {
-  if (-not $path -or -not (Test-Path $path)) { return $false }
+  if (-not (Test-PathExistsSafe $path)) { return $false }
   $probe = Join-Path $path ('.kq8_write_test_' + [guid]::NewGuid().ToString('N'))
   try {
     [IO.File]::WriteAllText($probe, 'ok')
@@ -304,7 +317,7 @@ function Update-AdminBanner {
       'Use Run as administrator (or allow UAC) to write files.'
     }
     $lblAdmin.Text = "Program Files / GOG path: New Game often crashes while copying worlds.`nPrefer a short copy like C:\Games\KQ8. $adminBit"
-  } elseif ($path -and (Test-Path (Join-Path $path 'Mask.exe'))) {
+  } elseif (Test-MaskInDir $path) {
     $lblAdmin.ForeColor = [System.Drawing.Color]::DarkGreen
     $lblAdmin.Text = 'Short game path looks good for New Game.'
   } else {
@@ -315,17 +328,23 @@ function Update-AdminBanner {
 $detected = Get-GogKq8Path
 if ($detected) {
   $txtPath.Text = $detected
-  $lblDetect.Text = 'GOG path found (you can change it).'
+  $lblDetect.Text = 'GOG / game path found (you can change it).'
   $lblDetect.ForeColor = [System.Drawing.Color]::DarkGreen
-} elseif (Test-Path 'D:\Games\KQ8\KQ8\Mask.exe') {
-  $txtPath.Text = 'D:\Games\KQ8\KQ8'
-  $lblDetect.Text = 'Using D:\Games\KQ8\KQ8 (space-free junction)'
-} elseif (Test-Path 'D:\Games\KQ8\Kings Quest 8\Mask.exe') {
-  $txtPath.Text = 'D:\Games\KQ8\Kings Quest 8'
-  $lblDetect.Text = 'Using D:\Games\KQ8\Kings Quest 8 (prefer D:\Games\KQ8\KQ8)'
-} elseif (Test-Path 'D:\Games\KQ8\Mask.exe') {
-  $txtPath.Text = 'D:\Games\KQ8'
-  $lblDetect.Text = 'Using D:\Games\KQ8'
+} else {
+  # Optional local fallbacks — never require a specific drive letter.
+  foreach ($cand in @(
+      'C:\Games\KQ8\KQ8',
+      'C:\Games\KQ8',
+      'D:\Games\KQ8\KQ8',
+      'D:\Games\KQ8\Kings Quest 8',
+      'D:\Games\KQ8'
+    )) {
+    if (Test-MaskInDir $cand) {
+      $txtPath.Text = $cand
+      $lblDetect.Text = "Using $cand"
+      break
+    }
+  }
 }
 Update-AdminBanner
 

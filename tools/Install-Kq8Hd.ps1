@@ -63,6 +63,18 @@ function Read-YesNo([string]$prompt, [bool]$defaultYes) {
   return ($r -eq 'y' -or $r -eq 'yes')
 }
 
+function Test-PathExistsSafe([string]$path) {
+  if ([string]::IsNullOrWhiteSpace($path)) { return $false }
+  try { return [bool](Test-Path -LiteralPath $path -ErrorAction Stop) }
+  catch { return $false }
+}
+
+function Test-MaskInDir([string]$dir) {
+  if ([string]::IsNullOrWhiteSpace($dir)) { return $false }
+  try { return Test-PathExistsSafe (Join-Path $dir 'Mask.exe') }
+  catch { return $false }
+}
+
 function Find-GogInstalls {
   $hits = @()
   foreach ($k in @(
@@ -74,18 +86,19 @@ function Find-GogInstalls {
     $prop = Get-ItemProperty $k -ErrorAction SilentlyContinue
     $p = $prop.PATH
     if (-not $p -and $prop.EXE) { $p = Split-Path $prop.EXE -Parent }
-    if ($p -and (Test-Path (Join-Path $p 'Mask.exe'))) {
+    if (Test-MaskInDir $p) {
       $hits += [pscustomobject]@{ Path = $p }
     }
   }
+  # Scan common roots only when the drive/folder exists (missing D: must not abort).
   foreach ($root in @(
       "${env:ProgramFiles(x86)}\GOG Galaxy\Games",
       "$env:ProgramFiles\GOG Galaxy\Games",
-      'D:\Games',
-      'C:\Games'
-    ) | Where-Object { $_ -and (Test-Path $_) }) {
+      'C:\Games',
+      'D:\Games'
+    ) | Where-Object { Test-PathExistsSafe $_ }) {
     Get-ChildItem $root -Directory -ErrorAction SilentlyContinue | ForEach-Object {
-      if (Test-Path (Join-Path $_.FullName 'Mask.exe')) {
+      if (Test-MaskInDir $_.FullName) {
         $hits += [pscustomobject]@{ Path = $_.FullName }
       }
     }
@@ -105,10 +118,10 @@ function Browse-Folder([string]$description) {
 function Assert-GamePath([string]$path) {
   if (-not $path) { throw 'No game path.' }
   $path = $path.Trim().Trim('"')
-  if (-not (Test-Path (Join-Path $path 'Mask.exe'))) {
+  if (-not (Test-MaskInDir $path)) {
     throw "Mask.exe not found in: $path"
   }
-  return (Resolve-Path $path).Path
+  return (Resolve-Path -LiteralPath $path).Path
 }
 
 function Backup-File([string]$gameDir, [string]$backupDir, [string]$rel) {
